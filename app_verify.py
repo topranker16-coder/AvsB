@@ -57,7 +57,8 @@ def get_text_diff(old_text, new_text):
     """구판과 신판의 줄 단위 변경점(+/-) 추출"""
     old_lines = old_text.splitlines()
     new_lines = new_text.splitlines()
-    diff = difflib.unified_diff(old_lines, new_lines, lterm='', fromfile='구판', tofile='최신판')
+    # lineterm 오타 수정 완료
+    diff = difflib.unified_diff(old_lines, new_lines, lineterm='', fromfile='구판', tofile='최신판')
     return "\n".join(list(diff)[2:]) # 헤더 제외 변경선만 반환
 
 def compare_sections(old_sections, new_sections):
