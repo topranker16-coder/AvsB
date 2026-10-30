@@ -53,8 +53,8 @@ if st.button("🚀 다중 기준 대조 개정안 생성 및 대항군 검증 �
         
         with st.spinner("AI가 여러 개의 최신 기준을 분석·반영하고, 대항군이 허점을 검증 중입니다... 잠시만 기다려주세요."):
             try:
-                # 가장 안정적이고 확실한 모델명 'gemini-2.5-flash' 사용
-                gen_model = genai.GenerativeModel("gemini-2.5-flash")
+                # 에러 메시지가 권장하는 최신 모델 'gemini-3.8-flash' 사용
+                gen_model = genai.GenerativeModel("gemini-3.8-flash")
                 
                 # 1단계: 초안 작성 (Generator)
                 prompt_gen = f"""
