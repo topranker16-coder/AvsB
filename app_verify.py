@@ -1,160 +1,81 @@
+import os
 import streamlit as st
-import json
-import time
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
-# Streamlit 페이지 기본 설정
-st.set_page_config(page_title="초순수 문제 자동 검증기", page_icon="💧", layout="wide")
+# 페이지 설정
+st.set_page_config(page_title="소방 실무행정 AI 대항군 개정기", layout="wide")
 
-st.title("💧 초순수(Ultrapure) 기출변형 자동 검증 파이프라인")
-st.caption("파일을 업로드하거나 텍스트를 입력하면, 백그라운드에서 악랄한 이의제기 공격을 거쳐 무결점 문제만 추출합니다.")
+st.title("🔥 소방 점검실무행정 신/구 기준 대조 및 대항군 검증기")
 
-# 1. API 키 설정 (스트림릿 시크릿 또는 사이드바 입력)
-api_key = st.sidebar.text_input("Gemini API Key", type="password")
-if not api_key:
-    st.info("👈 왼쪽 사이드바에 Gemini API Key를 입력해주세요.")
-    st.stop()
+# API 키 입력 (또는 st.secrets 활용)
+api_key = st.text_input("Gemini API Key를 입력하세요", type="password")
 
-client = genai.Client(api_key=api_key)
-
-# ---------------------------------------------------------
-# Prompt Templates (역할 분담 에이전트)
-# ---------------------------------------------------------
-
-GENERATOR_PROMPT = """
-당신은 한국 수능 및 평가원 최고 수준의 출제위원입니다.
-아래 제공된 [기출 원본 / 지문 / 개념]을 바탕으로, 평가원 스타일의 완벽한 문항 1개를 작성하세요.
-
-[지시사항]
-- 발문, 지문/제시문, 보기(①~⑤), 정답, 그리고 상세 해설을 포함하세요.
-- 마크다운(Markdown) 포맷으로 출력하세요.
-
-[제공 소스]:
-{source_text}
-"""
-
-ATTACKER_PROMPT = """
-당신은 수능 시험 직후 '이의제기'를 신청하려는 가장 깐깐하고 악랄한 최상위권 수험생이자 학원 강사입니다.
-제시된 [초안 문제]를 샅샅이 뜯어보고 다음 항목을 철저히 공격하세요.
-
-[검증 항목]
-1. 복수정답 가능성: 정답 이외의 오답 선지 중 정답이 될 여지가 단 1%라도 있는가?
-2. 논리적 비약/오류: 지문/제시문과 정답 간의 논리적 모순이나 단어 해석의 왜곡이 있는가?
-3. 수학/표분석 수치 오류: 조건과 해 사이의 수치적 모순이나 계산 오류가 있는가?
-4. 평가원 학자 입장 왜곡 (사탐): 생윤/사문 학자의 어조나 특정 조건(~만, 모두 등)이 오개념을 유발하는가?
-
-[초안 문제]:
-{problem_draft}
-
-지적할 오류나 허점이 있다면 명확히 짚어내고, 이상이 전혀 없다면 "오류 없음"이라고 단호하게 말하세요.
-"""
-
-JUDGE_PROMPT = """
-당신은 수능 출제위원장입니다.
-[이의제기 공격 내용]을 검토하여 이 문제가 진짜로 '불순물(오류/복수정답 여지)'이 섞인 불량 문제인지 판정하세요.
-
-[이의제기 공격 내용]:
-{attack_report}
-
-[응답 형식 (반드시 JSON 형식으로 응답할 것)]:
-{{
-  "is_clean": true 또는 false,
-  "reason": "PASS 사유 또는 REJECT 사유 요약"
-}}
-is_clean이 true인 경우는 단 0.001%의 허점도 없이 완전히 깨끗할 때만 해당합니다.
-"""
-
-# ---------------------------------------------------------
-# Core API Functions
-# ---------------------------------------------------------
-
-def generate_problem(source_text: str) -> str:
-    response = client.models.generate_content(
-        model="gemini-2.5-pro",
-        contents=GENERATOR_PROMPT.format(source_text=source_text)
-    )
-    return response.text
-
-def attack_problem(problem_draft: str) -> str:
-    response = client.models.generate_content(
-        model="gemini-2.5-pro",
-        contents=ATTACKER_PROMPT.format(problem_draft=problem_draft)
-    )
-    return response.text
-
-def judge_problem(attack_report: str) -> dict:
-    response = client.models.generate_content(
-        model="gemini-2.5-flash",
-        contents=JUDGE_PROMPT.format(attack_report=attack_report),
-        config=types.GenerateContentConfig(
-            response_mime_type="application/json"
-        )
-    )
-    return json.loads(response.text)
-
-# ---------------------------------------------------------
-# UI Layout & User Input
-# ---------------------------------------------------------
-
-col1, col2 = st.columns([1, 1])
-
-with col1:
-    subject = st.selectbox("과목 선택", ["ENGLISH", "MATH", "SOCIOLOGY", "ETHICS"])
-    loop_count = st.slider("검증 크로스체크 횟수 (N회 반복)", min_value=1, max_value=5, value=3)
+if api_key:
+    genai.configure(api_key=api_key)
     
-    # [추가된 파일 업로더 기능]
-    uploaded_file = st.file_uploader("📁 기출 원본 파일 업로드 (.txt 또는 .md)", type=["txt", "md"])
+    col1, col2 = st.columns(2)
     
-    source_input_text = ""
-    if uploaded_file is not None:
-        # 업로드된 파일 내용을 텍스트로 읽어옴
-        source_input_text = uploaded_file.getvalue().decode("utf-8")
-        st.success(f"파일 업로드 완료: {uploaded_file.name}")
-        with st.expander("업로드된 원본 내용 미리보기"):
-            st.text(source_input_text[:500] + ("..." if len(source_input_text) > 500 else ""))
-    
-    # 직접 입력도 병행 가능
-    source_input = st.text_area("또는 기출 원본 지문 / 문제 조건 / 개념 직접 입력", value=source_input_text, height=200)
-    
-    run_btn = st.button("🚀 초순수 문제 생성 및 자동 검증 시작", use_container_width=True)
-
-with col2:
-    st.subheader("📋 실시간 검증 로그 & 결과")
-    status_area = st.empty()
-    result_area = st.empty()
-
-if run_btn:
-    if not source_input.strip():
-        st.warning("파일을 업로드하거나 원수(기출 소스) 데이터를 입력해 주세요.")
-        st.stop()
+    with col1:
+        st.subheader("📁 구형 실무 원본 입력")
+        old_text = st.text_area("구형 실무 행정 `.md` 내용 붙여넣기", height=300)
         
-    status_area.info("1단계: 문제 초안을 생성하는 중입니다...")
-    try:
-        draft = generate_problem(source_input)
+    with col2:
+        st.subheader("📚 최신 법령 및 NFTC 기준 입력")
+        modern_text = st.text_area("최신 화재안전기준 `.md` 내용 붙여넣기", height=300)
         
-        is_passed = True
-        for i in range(1, loop_count + 1):
-            status_area.info(f"2단계-{i}회차 Filter: 악랄한 이의제기 공격 및 판정 중...")
+    code_number = st.text_input("기준 번호 (예: 101, 102 등)", value="101")
+    
+    if st.button("🚀 신형 개정안 생성 및 대항군 검증 시작"):
+        if not old_text or not modern_text:
+            st.warning("구형 원본과 최신 기준을 모두 입력해주세요.")
+        else:
+            with st.spinner("AI가 최신 기준을 반영하고 대항군이 허점을 검증 중입니다..."):
+                
+                # 1단계: 초안 작성 (Generator)
+                gen_model = genai.GenerativeModel("gemini-2.5-pro")
+                prompt_gen = f"""
+                너는 최고 권위의 소방기술사이자 실무행정 개정 편찬 위원장이다.
+                아래의 [구형 실무행정 자료] 목차와 뼈대를 살리되, [최신 기준]에 맞춰 완벽하게 최신화하라.
+                
+                [구형 실무행정 원본]:
+                {old_text}
+                
+                [최신 기준 참고]:
+                {modern_text}
+                """
+                draft = gen_model.generate_content(prompt_gen).text
+                
+                # 2단계: 대항군 검증 (Critic)
+                critic_model = genai.GenerativeModel("gemini-2.5-pro")
+                prompt_critic = f"""
+                너는 타협 없는 수석 소방안전 감사관이자 냉철한 대항군이다.
+                아래의 [개정 초안]이 [최신 기준]과 완벽히 부합하는지 검증하라.
+                구형 수치나 모순이 있다면 허를 찌르고 수정안을 제시하라. 완벽하면 [승인]을 적어라.
+                
+                [최신 기준]:
+                {modern_text}
+                
+                [개정 초안]:
+                {draft}
+                """
+                audit_result = critic_model.generate_content(prompt_critic).text
+                
+            st.success("개정 및 검증 완료!")
             
-            attack = attack_problem(draft)
-            judgment = judge_problem(attack)
+            # 결과 출력
+            st.markdown("---")
+            st.subheader("🛡️ 대항군(Critic) 검증 리포트")
+            st.markdown(audit_result)
             
-            if not judgment.get("is_clean", False):
-                is_passed = False
-                status_area.error(f"❌ [{i}회차 검증 실패] 불순물(오류) 발견으로 자진 폐기되었습니다.\n사유: {judgment.get('reason')}")
-                break
-            time.sleep(0.5)
+            st.markdown("---")
+            st.subheader("📝 최종 개정 실무행정 초안")
+            st.markdown(draft)
             
-        if is_passed:
-            status_area.success(f"✨ [{loop_count}회 연속 검증 통과] 순도 100% 초순수 문제 완성!")
-            result_area.markdown(draft)
-            
+            # 다운로드 버튼
+            final_output = f"# [대항군 검증 리포트]\n{audit_result}\n\n---\n\n# [최종 개정 본문]\n{draft}"
             st.download_button(
-                label="📥 검증된 마크다운(.md) 파일 다운로드",
-                data=draft,
-                file_name=f"{subject}_clean_problem.md",
+                label="📥 최종 개정 파일(.md) 다운로드",
+                data=final_output,
+                file_name=f"practical_{code_number}_revised.md",
                 mime="text/markdown"
             )
-    except Exception as e:
-        status_area.error(f"실행 중 오류가 발생했습니다: {e}")
