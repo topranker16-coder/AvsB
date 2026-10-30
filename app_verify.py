@@ -23,7 +23,7 @@ with col2:
     st.subheader("📚 2. 최신 법령 및 기준 파일들 (최대 5개 이상)")
     modern_files = st.file_uploader(
         "최신 화재안전기준, 시설법 등 참고할 파일들을 모두 선택하세요.", 
-        type=["md", "txt"], 
+        type=["md", "txt", "pdf"], 
         accept_multiple_files=True, 
         key="moderns"
     )
@@ -42,18 +42,19 @@ if st.button("🚀 다중 기준 대조 개정안 생성 및 대항군 검증 �
         # API 키 설정
         genai.configure(api_key=api_key.strip())
         
-        # 구형 원본 내용 읽기
-        old_text = old_file.read().decode("utf-8")
-        
-        # 여러 개의 최신 기준 파일 내용을 하나로 합치기
-        modern_texts_combined = ""
-        for idx, m_file in enumerate(modern_files):
-            file_content = m_file.read().decode("utf-8")
-            modern_texts_combined += f"\n\n--- [참고 파일 {idx+1}: {m_file.name}] ---\n{file_content}"
-        
-        with st.spinner("AI가 여러 개의 최신 기준을 분석·반영하고, 대항군이 허점을 검증 중입니다... 잠시만 기다려주세요."):
-            try:
-                # 에러 메시지가 권장하는 최신 모델 'gemini-3.8-flash' 사용
+        try:
+            # 구형 원본 내용 읽기
+            old_text = old_file.read().decode("utf-8")
+            
+            # 여러 개의 최신 기준 파일 내용을 하나로 합치기
+            modern_texts_combined = ""
+            for idx, m_file in enumerate(modern_files):
+                file_content = m_file.read().decode("utf-8")
+                modern_texts_combined += f"\n\n--- [참고 파일 {idx+1}: {m_file.name}] ---\n{file_content}"
+            
+            with st.spinner("AI가 여러 개의 최신 기준을 분석·반영하고, 대항군이 허점을 검증 중입니다... 잠시만 기다려주세요."):
+                
+                # 최신 모델 사용
                 gen_model = genai.GenerativeModel("gemini-3.8-flash")
                 
                 # 1단계: 초안 작성 (Generator)
@@ -85,25 +86,26 @@ if st.button("🚀 다중 기준 대조 개정안 생성 및 대항군 검증 �
                 audit_res = gen_model.generate_content(prompt_critic)
                 audit_result = audit_res.text
                 
-                st.success("다중 기준 대조 개정 및 대항군 검증이 완료되었습니다!")
-                
-                # 결과 출력
-                st.markdown("---")
-                st.subheader("🛡️ 대항군(Critic) 검증 리포트")
-                st.markdown(audit_result)
-                
-                st.markdown("---")
-                st.subheader("📝 최종 개정 실무행정 초안")
-                st.markdown(draft)
-                
-                # 다운로드 버튼
-                final_output = f"# [대항군 검증 리포트]\n{audit_result}\n\n---\n\n# [최종 개정 본문]\n{draft}"
-                st.download_button(
-                    label="📥 최종 개정 파일(.md) 다운로드",
-                    data=final_output,
-                    file_name=f"practical_{code_number}_revised.md",
-                    mime="text/markdown"
-                )
+            st.success("다중 기준 대조 개정 및 대항군 검증이 완료되었습니다!")
+            
+            # 결과 출력
+            st.markdown("---")
+            st.subheader("🛡️ 대항군(Critic) 검증 리포트")
+            st.markdown(audit_result)
+            
+            st.markdown("---")
+            st.subheader("📝 최종 개정 실무행정 초안")
+            st.markdown(draft)
+            
+            # 다운로드 버튼
+            final_output = f"# [대항군 검증 리포트]\n{audit_result}\n\n---\n\n# [최종 개정 본문]\n{draft}"
+            st.download_button(
+                label="📥 최종 개정 파일(.md) 다운로드",
+                data=final_output,
+                file_name=f"practical_{code_number}_revised.md",
+                mime="text/markdown"
+            )
 
-            except Exception as e:
-                st.error(f"오류가 발생했습니다: {str(e)}")
+        except Exception as e:
+            st.error(f"❌ 실행 중 오류가 발생했습니다: {str(e)}")
+            st.info("💡 팁: 업로드하신 파일의 용량이 너무 크면 AI가 한 번에 처리하지 못할 수 있습니다. 참고 파일 개수를 줄이거나 텍스트를 나누어 시도해 보세요.")
