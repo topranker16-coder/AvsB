@@ -20,7 +20,7 @@ with col1:
     old_file = st.file_uploader("구형 점검실무행정 파일 선택", type=["md", "txt"], key="old")
 
 with col2:
-    st.subheader("📚 2. 최신 법령 및 기준 파일들 (최대 5개)")
+    st.subheader("📚 2. 최신 법령 및 기준 파일들 (최대 5개 이상)")
     modern_files = st.file_uploader(
         "최신 화재안전기준, 시설법 등 참고할 파일들을 모두 선택하세요.", 
         type=["md", "txt"], 
@@ -52,8 +52,10 @@ if st.button("🚀 다중 기준 대조 개정안 생성 및 대항군 검증 �
         
         with st.spinner("AI가 여러 개의 최신 기준을 분석·반영하고, 대항군이 허점을 검증 중입니다... 잠시만 기다려주세요."):
             
+            # 안정적인 gemini-1.5-pro 모델 사용
+            gen_model = genai.GenerativeModel("gemini-1.5-pro")
+            
             # 1단계: 초안 작성 (Generator)
-            gen_model = genai.GenerativeModel("gemini-2.5-pro")
             prompt_gen = f"""
             너는 최고 권위의 소방기술사이자 실무행정 개정 편찬 위원장이다.
             아래의 [구형 실무행정 원본] 목차와 뼈대를 살리되, 제공된 [여러 개의 최신 법령 및 화재안전기준 참고 자료]를 종합하여 완벽하게 최신화된 실무행정 가이드를 작성하라.
@@ -67,7 +69,6 @@ if st.button("🚀 다중 기준 대조 개정안 생성 및 대항군 검증 �
             draft = gen_model.generate_content(prompt_gen).text
             
             # 2단계: 대항군 검증 (Critic)
-            critic_model = genai.GenerativeModel("gemini-2.5-pro")
             prompt_critic = f"""
             너는 타협 없는 수석 소방안전 감사관이자 냉철한 대항군이다.
             아래의 [개정 초안]이 제공된 [최신 법령 및 기준 참고 자료]와 완벽히 부합하는지 엄격하게 검증하라.
@@ -79,7 +80,7 @@ if st.button("🚀 다중 기준 대조 개정안 생성 및 대항군 검증 �
             [개정 초안]:
             {draft}
             """
-            audit_result = critic_model.generate_content(prompt_critic).text
+            audit_result = gen_model.generate_content(prompt_critic).text
             
         st.success("다중 기준 대조 개정 및 대항군 검증이 완료되었습니다!")
         
