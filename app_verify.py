@@ -5,23 +5,23 @@ import google.generativeai as genai
 # 페이지 설정
 st.set_page_config(page_title="소방 실무행정 AI 대항군 개정기", layout="wide")
 
-# 1. 사이드바에 API Key 입력창 배치 (메인 화면을 가리지 않게 분리)
+# 1. 사이드바에 API Key 입력창 배치
 st.sidebar.header("🔑 설정")
 api_key = st.sidebar.text_input("Gemini API Key 입력", type="password")
 
 st.title("🔥 소방 점검실무행정 신/구 기준 대조 및 대항군 검증기")
-st.markdown("구형 실무행정 마크다운(`.md`) 파일과 최신 화재안전기준(`.md`) 파일을 업로드하면, AI가 최신화를 수행하고 대항군(Critic)이 허점을 검증합니다.")
+st.markdown("구형 실무행정 파일(`.md`, `.txt`)과 최신 화재안전기준 파일(`.md`, `.txt`)을 업로드하면, AI가 최신화를 수행하고 대항군(Critic)이 허점을 검증합니다.")
 
-# 2. API 키가 없어도 파일 업로드 창은 항상 보이도록 설정
+# 2. 파일 업로드 창 (md와 txt 모두 선택 가능하도록 수정)
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("📁 구형 실무 원본 (.md)")
-    old_file = st.file_uploader("구형 점검실무행정 마크다운 파일 선택", type=["md"], key="old")
+    st.subheader("📁 구형 실무 원본 (.md / .txt)")
+    old_file = st.file_uploader("구형 점검실무행정 파일 선택", type=["md", "txt"], key="old")
 
 with col2:
-    st.subheader("📚 최신 법령 및 NFTC 기준 (.md)")
-    modern_file = st.file_uploader("최신 화재안전기준 마크다운 파일 선택", type=["md"], key="modern")
+    st.subheader("📚 최신 법령 및 NFTC 기준 (.md / .txt)")
+    modern_file = st.file_uploader("최신 화재안전기준 파일 선택", type=["md", "txt"], key="modern")
 
 code_number = st.text_input("기준 번호 (예: 101, 102 등)", value="101")
 
@@ -30,11 +30,11 @@ if st.button("🚀 신형 개정안 생성 및 대항군 검증 시작"):
     if not api_key:
         st.error("좌측 사이드바에 Gemini API Key를 먼저 입력해주세요!")
     elif not old_file or not modern_file:
-        st.warning("구형 원본 파일과 최신 기준 마크다운(.md) 파일을 모두 업로드해주세요.")
+        st.warning("구형 원본 파일과 최신 기준 파일을 모두 업로드해주세요.")
     else:
         genai.configure(api_key=api_key)
         
-        # 업로드된 파일 내용 읽기
+        # 업로드된 파일 내용 읽기 (utf-8 인코딩)
         old_text = old_file.read().decode("utf-8")
         modern_text = modern_file.read().decode("utf-8")
         
