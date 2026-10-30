@@ -5,9 +5,9 @@ import google.generativeai as genai
 # 페이지 설정
 st.set_page_config(page_title="소방 실무행정 AI 대항군 개정기", layout="wide")
 
-st.title("🔥 소방 점검실무행정 신/구 기준 대조 및 대항군 검증기")
+st.title("🔥 소방 점검실무행정 신/구 기준 대조 및 대항군 검증기 (MD 파일 업로드)")
 
-# API 키 입력 (또는 st.secrets 활용)
+# API 키 입력
 api_key = st.text_input("Gemini API Key를 입력하세요", type="password")
 
 if api_key:
@@ -16,20 +16,24 @@ if api_key:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📁 구형 실무 원본 입력")
-        old_text = st.text_area("구형 실무 행정 `.md` 내용 붙여넣기", height=300)
+        st.subheader("📁 구형 실무 원본 (.md)")
+        old_file = st.file_uploader("구형 점검실무행정 마크다운 파일 선택", type=["md"], key="old")
         
     with col2:
-        st.subheader("📚 최신 법령 및 NFTC 기준 입력")
-        modern_text = st.text_area("최신 화재안전기준 `.md` 내용 붙여넣기", height=300)
+        st.subheader("📚 최신 법령 및 NFTC 기준 (.md)")
+        modern_file = st.file_uploader("최신 화재안전기준 마크다운 파일 선택", type=["md"], key="modern")
         
     code_number = st.text_input("기준 번호 (예: 101, 102 등)", value="101")
     
     if st.button("🚀 신형 개정안 생성 및 대항군 검증 시작"):
-        if not old_text or not modern_text:
-            st.warning("구형 원본과 최신 기준을 모두 입력해주세요.")
+        if not old_file or not modern_file:
+            st.warning("구형 원본 파일과 최신 기준 마크다운(.md) 파일을 모두 업로드해주세요.")
         else:
-            with st.spinner("AI가 최신 기준을 반영하고 대항군이 허점을 검증 중입니다..."):
+            # 업로드된 파일 내용을 텍스트로 디코딩
+            old_text = old_file.read().decode("utf-8")
+            modern_text = modern_file.read().decode("utf-8")
+            
+            with st.spinner("AI가 최신 기준을 반영하고 대항군이 허점을 검증 중입니다... 잠시만 기다려주세요."):
                 
                 # 1단계: 초안 작성 (Generator)
                 gen_model = genai.GenerativeModel("gemini-2.5-pro")
@@ -60,7 +64,7 @@ if api_key:
                 """
                 audit_result = critic_model.generate_content(prompt_critic).text
                 
-            st.success("개정 및 검증 완료!")
+            st.success("개정 및 대항군 검증이 완료되었습니다!")
             
             # 결과 출력
             st.markdown("---")
